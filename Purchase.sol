@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.4;
+
+
 contract Purchase {
     uint public value;
     address payable public seller;
     address payable public buyer;
     uint256 public lastTime;
-
     enum State { Created, Locked, Release, Inactive }
     // The state variable has a default value of the first member, `State.created`
     State public state;
@@ -42,20 +43,19 @@ contract Purchase {
         _;
     }
 
-    modifier buyerOrTime() {
-        if(msg.sender == buyer || lastTime + (5*60) <= block.timestamp ) {
+    modifier buyerOrTime(){
+        if(msg.sender == buyer || lastTime + (5*60) <= block.timestamp )
             _;
-        } else {
+        else
             revert OnlySeller();
-        }
-
+        
     }
 
     event Aborted();
     event PurchaseConfirmed();
     event ItemReceived();
     event SellerRefunded();
-    event ConfirmPurchase();
+    event ConfirmedPurchase();
     // Ensure that `msg.value` is an even number.
     // Division will truncate if it is an odd number.
     // Check via multiplication that it wasn't an odd number.
@@ -101,12 +101,14 @@ contract Purchase {
 
     
 
-   function completePurchase() external payable inState(State.Locked) buyerOrTime() 
-   condition(msg.value == (2*value)) 
-    {
-        emit ConfirmPurchase();
+    function completePurchase() external payable  inState(State.Locked) buyerOrTime()
+        condition(msg.value == (2 * value))
+        {
+        emit ConfirmedPurchase();
         state = State.Inactive;
+
         buyer.transfer(value);
+
         seller.transfer(3 * value);
-   }
+    }
 }
