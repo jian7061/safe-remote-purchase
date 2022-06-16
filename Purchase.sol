@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.4;
 
+import "hardhat/console.sol";
 
 contract Purchase {
     uint public value;
     address payable public seller;
     address payable public buyer;
-    uint256 public lastTime;
+    uint256 public lastTime = block.timestamp;
+
     enum State { Created, Locked, Release, Inactive }
     // The state variable has a default value of the first member, `State.created`
     State public state;
@@ -24,6 +26,8 @@ contract Purchase {
     error InvalidState();
     /// The provided value has to be even.
     error ValueNotEven();
+    /// Only the buyer can call this function or after 5 minutes.
+    error OnlyBuyerOrUnder5mins();
 
     modifier onlyBuyer() {
         if (msg.sender != buyer)
@@ -43,23 +47,24 @@ contract Purchase {
         _;
     }
 
-    modifier buyerOrTime(){
-        if(msg.sender == buyer || lastTime + (5*60) <= block.timestamp )
-            _;
-        else
-            revert OnlySeller();
-        
+    modifier buyerOrAfter5mins() {
+        if(msg.sender == buyer || block.timestamp >= lastTime + 5 minutes)
+            revert OnlyBuyerOrUnder5mins();
+        _;
     }
+
 
     event Aborted();
     event PurchaseConfirmed();
     event ItemReceived();
     event SellerRefunded();
-    event ConfirmedPurchase();
+    event PurchaseCompleted();
+
     // Ensure that `msg.value` is an even number.
     // Division will truncate if it is an odd number.
     // Check via multiplication that it wasn't an odd number.
     constructor() payable {
+        console.log("deployed time: ",block.timestamp);
         seller = payable(msg.sender);
         value = msg.value / 2;
         if ((2 * value) != msg.value)
@@ -96,19 +101,23 @@ contract Purchase {
         emit PurchaseConfirmed();
         buyer = payable(msg.sender);
         state = State.Locked;
-        lastTime = block.timestamp;
     }
 
     
 
-    function completePurchase() external payable  inState(State.Locked) buyerOrTime()
+    function completePurchase() 
+        external 
+        inState(State.Locked) 
+        buyerOrAfter5mins
         condition(msg.value == (2 * value))
-        {
-        emit ConfirmedPurchase();
+        payable
+    {
+        emit PurchaseCompleted();
         state = State.Inactive;
-
         buyer.transfer(value);
-
         seller.transfer(3 * value);
+        console.log(block.timestamp);
     }
+
+    
 }
